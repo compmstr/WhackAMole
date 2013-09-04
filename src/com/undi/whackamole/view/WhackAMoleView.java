@@ -3,6 +3,7 @@ package com.undi.whackamole.view;
 import java.lang.Thread.State;
 
 import com.undi.whackamole.WhackAMoleThread;
+import com.undi.whackamole.WhackAMoleUI;
 
 import android.content.Context;
 import android.os.Handler;
@@ -16,20 +17,21 @@ import android.view.SurfaceView;
 public class WhackAMoleView extends SurfaceView implements Callback {
 	
 	private WhackAMoleThread thread;
+	private WhackAMoleUI ui;
 
 	public WhackAMoleView(Context context, AttributeSet attrs) {
 		super(context, attrs);
 		
 		SurfaceHolder holder = getHolder();
 		holder.addCallback(this);
-
-		thread = new WhackAMoleThread(holder, context,
+		ui = new WhackAMoleUI(holder, context,
 				new Handler(){
 			@Override
 			public void handleMessage(Message m){
-				
+
 			}
 		});
+		thread = new WhackAMoleThread(ui);
 		setFocusable(true);;
 	}
 
@@ -37,16 +39,20 @@ public class WhackAMoleView extends SurfaceView implements Callback {
 	
 	@Override
 	public boolean onTouchEvent(MotionEvent evt){
-		return thread.doTouchEvent(evt);
+		return ui.doTouchEvent(evt);
 	}
 
 	@Override
 	public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-		thread.setSurfaceSize(width, height);
+		ui.setSurfaceSize(width, height);
 	}
 
 	@Override
 	public void surfaceCreated(SurfaceHolder holder) {
+		//Recreate the thread if needed
+		if(thread.getState() == State.TERMINATED){
+			thread = new WhackAMoleThread(ui);
+		}
 		thread.setRunning(true);
 		if(thread.getState() == State.NEW){
 			thread.start();
