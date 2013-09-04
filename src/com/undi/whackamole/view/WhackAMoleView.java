@@ -63,7 +63,5 @@ public class WhackAMoleView extends SurfaceView implements Callback {
 	public void surfaceDestroyed(SurfaceHolder holder) {
 		thread.setRunning(false);
 	}
-	
-	
 
 }

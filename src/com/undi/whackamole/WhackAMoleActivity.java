@@ -1,5 +1,6 @@
 package com.undi.whackamole;
 
+import com.undi.whackamole.audio.WhackAMoleAudio;
 import com.undi.whackamole.view.WhackAMoleView;
 
 import android.os.Bundle;
@@ -13,8 +14,10 @@ import android.app.Activity;
 public class WhackAMoleActivity extends Activity {
 	
 	private static final int TOGGLE_SOUND = 1;
-	private boolean soundEnabled = true;
 	
+	private WhackAMoleView view;
+	private WhackAMoleAudio audio;
+
 	@Override
 	protected void onPause() {
 		super.onPause();
@@ -25,8 +28,6 @@ public class WhackAMoleActivity extends Activity {
 		super.onResume();
 	}
 
-	private WhackAMoleView view;
-
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -36,6 +37,7 @@ public class WhackAMoleActivity extends Activity {
 		setContentView(R.layout.activity_whack_amole);
 		view = (WhackAMoleView) findViewById(R.id.mole);
 		view.setKeepScreenOn(true);
+		audio = WhackAMoleAudio.getInstance();
 	}
 	
 
@@ -49,12 +51,7 @@ public class WhackAMoleActivity extends Activity {
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch(item.getItemId()){
 		case TOGGLE_SOUND:
-			if(soundEnabled){
-				soundEnabled = false;
-			}else{
-				soundEnabled = true;
-			}
-			String soundStatus = soundEnabled ? "On" : "Off";
+			String soundStatus = audio.toggleSound() ? "On" : "Off";
 			Toast.makeText(this, "Sound " + soundStatus, Toast.LENGTH_SHORT).show();
 			break;
 		}
