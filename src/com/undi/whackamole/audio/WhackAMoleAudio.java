@@ -7,11 +7,9 @@ public class WhackAMoleAudio {
 	private WhackAMoleAudio(){
 	}
 	
-	public static WhackAMoleAudio getInstance(){
+	public static synchronized WhackAMoleAudio getInstance(){
 		if(_instance == null){
-			synchronized(_instance){
-				_instance = (_instance == null) ? new WhackAMoleAudio() : _instance;
-			}
+			_instance = new WhackAMoleAudio();
 		}
 		return _instance;
 	}
