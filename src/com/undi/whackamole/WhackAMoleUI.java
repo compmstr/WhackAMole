@@ -1,9 +1,9 @@
 package com.undi.whackamole;
 
-import java.util.Random;
-
 import com.undi.android.ui.UIButton;
 import com.undi.android.ui.UICallback;
+import com.undi.android.ui.UIPushButton;
+import com.undi.android.ui.UIToggleButton;
 import com.undi.whackamole.Game.State;
 import com.undi.whackamole.audio.WhackAMoleAudio;
 
@@ -32,9 +32,7 @@ public class WhackAMoleUI {
 	private float scaleW, scaleH;
 	private Game game;
 
-	private UIButton soundOnButton;
-	private UIButton soundOffButton;
-	private UIButton curSoundButton;
+	private UIButton soundToggleButton;
 	private static WhackAMoleAudio audio;
 	private static Options imgLoadOptions = new Options();
 	
@@ -49,10 +47,6 @@ public class WhackAMoleUI {
 		}
 	};
 	
-	private void updateSoundButton(){
-		curSoundButton = audio.isSoundEnabled() ? soundOffButton : soundOnButton;
-	}
-
 	public WhackAMoleUI(SurfaceHolder holder, Context context,
 			Handler handler) {
 		this.context = context;
@@ -75,12 +69,8 @@ public class WhackAMoleUI {
 
 		imgLoadOptions.inScaled = false;
 		Bitmap rawGraphic = BitmapFactory.decodeResource(context.getResources(),
-				R.drawable.sound_on_button, imgLoadOptions);
-		soundOnButton = new UIButton(rawGraphic, 0.01, 0.88, 0.05, screenW, screenH, soundToggleCallback);
-		rawGraphic = BitmapFactory.decodeResource(context.getResources(),
-				R.drawable.sound_off_button, imgLoadOptions);
-		soundOffButton = new UIButton(rawGraphic, 0.01, 0.88, 0.05, screenW, screenH, soundToggleCallback);
-		updateSoundButton();
+				R.drawable.sound_toggle_button, imgLoadOptions);
+		soundToggleButton = new UIToggleButton(rawGraphic, 0.01, 0.88, 0.05, screenW, screenH, soundToggleCallback);
 		
 		game = new Game();
 		
@@ -89,9 +79,8 @@ public class WhackAMoleUI {
 	public void draw(Canvas canvas){
 		try{
 			canvas.drawBitmap(backgroundImg, 0, 0, null);
-			updateSoundButton();
-			if(curSoundButton != null){
-				curSoundButton.draw(canvas);
+			if(soundToggleButton != null){
+				soundToggleButton.draw(canvas);
 			}
 			switch(game.getState()){
 			case COUNTDOWN:
@@ -150,15 +139,19 @@ public class WhackAMoleUI {
 			int eventAction = event.getAction();
 			int x = (int) event.getX();
 			int y = (int) event.getY();
-			updateSoundButton();
+			boolean buttonEvent = false;
 			
 			switch(eventAction){
 			case MotionEvent.ACTION_DOWN:
-				if(curSoundButton != null){
-					curSoundButton.checkPressed(x, y);
-					if(game.getState() == State.PLAYING){
-						if(game.checkWhacks(x, y)){
-							audio.playWhack();
+				if(soundToggleButton != null){
+					if(soundToggleButton.checkPressed(x, y)){
+						buttonEvent = true;
+					}
+					if(!buttonEvent){
+						if(game.getState() == State.PLAYING){
+							if(game.checkWhacks(x, y)){
+								audio.playWhack();
+							}
 						}
 					}
 				}
@@ -166,25 +159,29 @@ public class WhackAMoleUI {
 			case MotionEvent.ACTION_MOVE:
 				break;
 			case MotionEvent.ACTION_UP:
-				if(curSoundButton != null){
-					curSoundButton.checkReleased(x, y);
+				if(soundToggleButton != null){
+					if(soundToggleButton.checkReleased(x, y)){
+						buttonEvent = true;
+					}
 				}
-				switch(game.getState()){
-				case TITLE:
-					backgroundImg = BitmapFactory.decodeResource(context.getResources(), R.drawable.background, imgLoadOptions);
-					updateScale();
-					backgroundImg = Bitmap.createScaledBitmap(backgroundImg, screenW, screenH, true);
-					loadMoles();
-					game.startCountdown();
-					break;
-				case PLAYING:
-					game.clearWhacked();
-					break;
-				case GAME_OVER:
-					game.startCountdown();
-					break;
-				default:
-					break;
+				if(!buttonEvent){
+					switch(game.getState()){
+					case TITLE:
+						backgroundImg = BitmapFactory.decodeResource(context.getResources(), R.drawable.background, imgLoadOptions);
+						updateScale();
+						backgroundImg = Bitmap.createScaledBitmap(backgroundImg, screenW, screenH, true);
+						loadMoles();
+						game.startCountdown();
+						break;
+					case PLAYING:
+						game.clearWhacked();
+						break;
+					case GAME_OVER:
+						game.startCountdown();
+						break;
+					default:
+						break;
+					}
 				}
 				break;
 			}
@@ -207,8 +204,7 @@ public class WhackAMoleUI {
 			screenH = height;
 			updateScale();
 			backgroundImg = Bitmap.createScaledBitmap(backgroundImg, screenW, screenH, true);
-			soundOffButton.rescaleGraphic(width, height);
-			soundOnButton.rescaleGraphic(width, height);
+			soundToggleButton.rescaleGraphic(width, height);
 		}
 	}
 	

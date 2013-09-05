@@ -11,19 +11,24 @@ import android.graphics.Rect;
  * @author corey
  *
  */
-public class UIButton {
-	private Bitmap rawGraphic;
-	private Bitmap graphic;
-	private Rect pos = new Rect();
-	private UICallback callback;
-	private Rect srcRect = new Rect();
-	private boolean isPressed;
-	private double xPercent, yPercent, wPercent;
+public abstract class UIButton {
+	protected Bitmap rawGraphic;
+	protected Bitmap graphic;
+	protected UICallback callback;
+	protected Rect srcRect = new Rect();
+	protected Rect pos = new Rect();
+	protected boolean isPressed = false;
+	protected double xPercent, yPercent, wPercent;
+	//The number of states this button has
+	//  ex: regular push button has one 'state'
+	//      toggle button has two 'states'
+	protected int numStates = 1;
+	protected int state = 0;
 	
-	private void init(){
-		scaleGraphic();
-		isPressed = false;
-	}
+	/**
+	 * Constructor for use by derived classes
+	 */
+	protected UIButton(){}
 	
 	public UIButton(Bitmap graphic, double xPercent, double yPercent, double wPercent,
 			int screenW, int screenH,
@@ -32,16 +37,16 @@ public class UIButton {
 		this.xPercent = xPercent;
 		this.yPercent = yPercent;
 		this.wPercent = wPercent;
-		rescaleGraphic(screenW, screenH);
 		this.callback = callback;
-		init();
 	}
 	
 	public UIButton rescaleGraphic(int screenW, int screenH){
 		int left = (int) (xPercent * screenW);
 		int top = (int) (yPercent * screenH);
 		int right = (int) (left + (wPercent * screenW));
-		int height = (int) ((right - left) * ((rawGraphic.getHeight() / 2.0) / rawGraphic.getWidth()));
+		float aspectRatio =  ((rawGraphic.getHeight() / 2.0f) / 
+					(rawGraphic.getWidth() / (numStates == 0 ? 1 : numStates)));
+		int height = (int) ((right - left) * aspectRatio);
 		int bottom = (int) (top + height);
 		pos.left = left;
 		pos.top = top;
@@ -53,19 +58,22 @@ public class UIButton {
 	}
 	
 	private void scaleGraphic(){
-		scaleGraphic(pos.right - pos.left, 2 * (pos.bottom - pos.top));
+		scaleGraphic(pos.right - pos.left, pos.bottom - pos.top);
 	}
 	private void scaleGraphic(int w, int h){
 		if(rawGraphic != null && w > 0 && h > 0){
-			graphic = Bitmap.createScaledBitmap(rawGraphic, w, h, false);
+			graphic = Bitmap.createScaledBitmap(rawGraphic, w * numStates, h * 2, false);
 			srcRect.left = 0;
 			srcRect.top = 0;
-			srcRect.right = this.graphic.getWidth();
-			srcRect.bottom = this.graphic.getHeight() / 2;
+			srcRect.right = w;
+			srcRect.bottom = h;
 			//update the top/bottom of srcRect using isPressed, if we're supposed
 			//  to be in the pressed state
 			if(isPressed){
 				setPressed(isPressed);
+			}
+			if(state != 0){
+				setState(state);
 			}
 		}
 	}
@@ -90,6 +98,19 @@ public class UIButton {
 			srcRect.top = 0;
 			srcRect.bottom = halfHeight;
 		}
+		return this;
+	}
+	
+	public UIButton setState(int newState){
+		if(newState <= numStates){
+			state = newState;
+			int stateWidth = graphic.getWidth() / numStates;
+			srcRect.left = (state * stateWidth);
+			srcRect.right = ((state + 1) * stateWidth);
+		}else{
+			throw new IllegalArgumentException("Invalid state sent to button");
+		}
+		
 		return this;
 	}
 	
@@ -118,9 +139,16 @@ public class UIButton {
 		setPressed(false);
 		if(contains(x, y)){
 			onClick(callbackArgs);
+			cycleState();
 			return true;
 		}else{
 			return false;
 		}
 	}
+	
+	private void cycleState(){
+		setState((state + 1) % numStates);
+	}
+	
+	public int getState(){ return state; }
 }
