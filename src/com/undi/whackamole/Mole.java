@@ -7,6 +7,7 @@ import android.graphics.BitmapFactory.Options;
 import android.graphics.Canvas;
 
 public class Mole {
+	private final static float DEFAULT_CYCLE_TIME = 2.0f;
 	private static Bitmap rawMole, mole;
 	private static Bitmap rawMask, mask;
 	private static Bitmap rawWhack, whack;
@@ -53,8 +54,7 @@ public class Mole {
 		this.maskY = (int) ((y - 25) * scaleH);
 		
 		rising = sinking = whacked = missed = false;
-		//Set the cycle time in seconds
-		setCycleTime(2.0f);
+		resetCycleTime();
 	}
 	
 	public boolean checkHit(int x, int y){
@@ -67,11 +67,22 @@ public class Mole {
 		}
 		return false;
 	}
+	public static void resetCycleTime(){
+		//Set the cycle time in seconds
+		setCycleTime(DEFAULT_CYCLE_TIME);
+	}
+	public void reset(){
+		whacked = false;
+		rising = sinking = whacked = missed = false;
+		moleOffset = 0;
+		lastTime = -1;
+	}
+	/**
+	 * Resets the mole if currently whacked
+	 */
 	public void clearWhacked(){
 		if(whacked){
-			whacked = false;
-			rising = sinking = false;
-			moleOffset = 0;
+			reset();
 		}
 	}
 	

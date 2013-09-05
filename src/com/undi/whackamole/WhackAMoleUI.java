@@ -4,13 +4,18 @@ import java.util.Random;
 
 import com.undi.android.ui.UIButton;
 import com.undi.android.ui.UICallback;
+import com.undi.whackamole.Game.State;
 import com.undi.whackamole.audio.WhackAMoleAudio;
 
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.graphics.BitmapFactory.Options;
+import android.graphics.Paint.Align;
+import android.graphics.Paint.Style;
 import android.graphics.Canvas;
+import android.graphics.Paint;
 import android.os.Handler;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
@@ -19,12 +24,13 @@ import android.widget.Toast;
 public class WhackAMoleUI {
 	private SurfaceHolder surfaceHolder;
 	private Bitmap backgroundImg;
+	private Bitmap gameOverImg;
 	private Context context;
-	private boolean onTitle = true;
 	private int screenW = 1;
 	private int screenH = 1;
 	private int bgOrigW, bgOrigH;
 	private float scaleW, scaleH;
+	private Game game;
 
 	private UIButton soundOnButton;
 	private UIButton soundOffButton;
@@ -32,9 +38,8 @@ public class WhackAMoleUI {
 	private static WhackAMoleAudio audio;
 	private static Options imgLoadOptions = new Options();
 	
-	private Mole[] moles;
-	private int molesWhacked = 0;
-	private int molesMissed = 0;
+	private Paint blackPaint;
+	private Paint blackCenterPaint;
 
 	private final UICallback soundToggleCallback = new UICallback() {
 		@Override
@@ -55,30 +60,32 @@ public class WhackAMoleUI {
 		this.backgroundImg = BitmapFactory.decodeResource(context.getResources(), R.drawable.title);
 		if(audio == null){
 			audio = WhackAMoleAudio.getInstance();
+			audio.loadSounds(context);
 		}
+		blackPaint = new Paint();
+		blackPaint.setAntiAlias(true);
+		blackPaint.setColor(Color.BLACK);
+		blackPaint.setStyle(Style.STROKE);
+		blackPaint.setTextAlign(Align.LEFT);
+		blackCenterPaint = new Paint();
+		blackCenterPaint.setAntiAlias(true);
+		blackCenterPaint.setColor(Color.BLACK);
+		blackCenterPaint.setStyle(Style.STROKE);
+		blackCenterPaint.setTextAlign(Align.CENTER);
+
 		imgLoadOptions.inScaled = false;
 		Bitmap rawGraphic = BitmapFactory.decodeResource(context.getResources(),
 				R.drawable.sound_on_button, imgLoadOptions);
-		soundOnButton = new UIButton(rawGraphic, 0.01, 0.01, 0.05, screenW, screenH, soundToggleCallback);
+		soundOnButton = new UIButton(rawGraphic, 0.01, 0.88, 0.05, screenW, screenH, soundToggleCallback);
 		rawGraphic = BitmapFactory.decodeResource(context.getResources(),
 				R.drawable.sound_off_button, imgLoadOptions);
-		soundOffButton = new UIButton(rawGraphic, 0.01, 0.01, 0.05, screenW, screenH, soundToggleCallback);
+		soundOffButton = new UIButton(rawGraphic, 0.01, 0.88, 0.05, screenW, screenH, soundToggleCallback);
 		updateSoundButton();
+		
+		game = new Game();
+		
 	}
 	
-	private boolean anyMolesMoving(){
-		for(Mole mole: moles){
-			if(mole.isMoving()){
-				return true;
-			}
-		}
-		return false;
-	}
-	
-	private void pickMole(){
-		moles[new Random().nextInt(7)].popUp();;
-	}
-
 	public void draw(Canvas canvas){
 		try{
 			canvas.drawBitmap(backgroundImg, 0, 0, null);
@@ -86,19 +93,46 @@ public class WhackAMoleUI {
 			if(curSoundButton != null){
 				curSoundButton.draw(canvas);
 			}
-			if(!onTitle){
-				if(!anyMolesMoving()){
-					pickMole();
+			switch(game.getState()){
+			case COUNTDOWN:
+				float countdownRemaining = game.getCountdownRemaining();
+				if(countdownRemaining > 0.0f){
+					canvas.drawText(String.format("Starting in: %d", (int)countdownRemaining), screenW / 2, screenH / 2, blackCenterPaint);
+				}else{
+					game.startGame();
+				}
+				break;
+			case PLAYING:
+				if(!game.anyMolesMoving()){
+					game.pickMole();
 				}
 				long curTime = System.currentTimeMillis();
 				try{
-					for(Mole mole : moles){
+					for(Mole mole : game.getMoles()){
 						mole.draw(canvas);
 						mole.update(curTime);
 					}
+					if(game.updateMissed()){ audio.playMiss(); }
 				}catch(Exception e){
-					
+
 				}
+				canvas.drawText("Whacked: " + Integer.toString(game.getMolesWhacked()), 10, blackPaint.getTextSize() + 10, blackPaint);
+				canvas.drawText("Missed: " + Integer.toString(game.getMolesMissed()), screenW - (int)(200 * scaleW), blackPaint.getTextSize() + 10, blackPaint);
+
+				if(game.checkGameOver()){
+					if(gameOverImg == null){
+						gameOverImg = BitmapFactory.decodeResource(context.getResources(), R.drawable.gameover);
+						gameOverImg = Bitmap.createScaledBitmap(gameOverImg, (int)(gameOverImg.getWidth() * scaleW),
+								(int)(gameOverImg.getHeight() * scaleH), true);
+					}
+				}
+				break;
+			case GAME_OVER:
+				canvas.drawBitmap(gameOverImg, (screenW / 2) - (gameOverImg.getWidth() / 2),
+						(screenH / 2) - (gameOverImg.getHeight() / 2), null);
+				break;
+			case TITLE:
+				break;
 			}
 		}catch(Exception e){
 		}
@@ -108,25 +142,7 @@ public class WhackAMoleUI {
 	
 	private void loadMoles(){
 		Mole.loadGraphics(context.getResources(), scaleW, scaleH);
-		moles = new Mole[7];
-		moles[0] = new Mole(55, 475);
-		moles[1] = new Mole(155, 425);
-		moles[2] = new Mole(255, 475);
-		moles[3] = new Mole(355, 425);
-		moles[4] = new Mole(455, 475);
-		moles[5] = new Mole(555, 425);
-		moles[6] = new Mole(655, 475);
-	}
-	
-	private void updateMissed(){
-		if(moles != null){
-			for(Mole mole : moles){
-				if(mole.isMissed()){
-					molesMissed++;
-					mole.clearMissed();
-				}
-			}
-		}
+		game.generateMoles();
 	}
 	
 	public boolean doTouchEvent(MotionEvent event){
@@ -140,15 +156,9 @@ public class WhackAMoleUI {
 			case MotionEvent.ACTION_DOWN:
 				if(curSoundButton != null){
 					curSoundButton.checkPressed(x, y);
-					if(!onTitle && moles != null){
-						for(Mole mole : moles){
-							if(mole.checkHit(x, y)){
-								//TODO: process whack
-								molesWhacked++;
-								if(molesWhacked % 10 == 0){
-									Mole.setMoveSpeed((int) (Mole.getMoveSpeed() * 1.1));
-								}
-							}
+					if(game.getState() == State.PLAYING){
+						if(game.checkWhacks(x, y)){
+							audio.playWhack();
 						}
 					}
 				}
@@ -159,19 +169,22 @@ public class WhackAMoleUI {
 				if(curSoundButton != null){
 					curSoundButton.checkReleased(x, y);
 				}
-				if(onTitle){
+				switch(game.getState()){
+				case TITLE:
 					backgroundImg = BitmapFactory.decodeResource(context.getResources(), R.drawable.background, imgLoadOptions);
-					bgOrigW = backgroundImg.getWidth();
-					bgOrigH = backgroundImg.getHeight();
-					scaleW = (float) screenW / (float) bgOrigW;
-					scaleH = (float) screenH / (float) bgOrigH;
+					updateScale();
 					backgroundImg = Bitmap.createScaledBitmap(backgroundImg, screenW, screenH, true);
 					loadMoles();
-					onTitle = false;
-				}else{
-					for(Mole mole: moles){
-						mole.clearWhacked();
-					}
+					game.startCountdown();
+					break;
+				case PLAYING:
+					game.clearWhacked();
+					break;
+				case GAME_OVER:
+					game.startCountdown();
+					break;
+				default:
+					break;
 				}
 				break;
 			}
@@ -179,10 +192,20 @@ public class WhackAMoleUI {
 		return true;
 	}
 	
+	private void updateScale(){
+		bgOrigW = backgroundImg.getWidth();
+		bgOrigH = backgroundImg.getHeight();
+		scaleW = (float) screenW / (float) bgOrigW;
+		scaleH = (float) screenH / (float) bgOrigH;
+		blackPaint.setTextSize(scaleW * 30);
+		blackCenterPaint.setTextSize(scaleW * 40);
+	}
+	
 	public void setSurfaceSize(int width, int height){
 		synchronized(surfaceHolder){
 			screenW = width;
 			screenH = height;
+			updateScale();
 			backgroundImg = Bitmap.createScaledBitmap(backgroundImg, screenW, screenH, true);
 			soundOffButton.rescaleGraphic(width, height);
 			soundOnButton.rescaleGraphic(width, height);

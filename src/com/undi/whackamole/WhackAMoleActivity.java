@@ -3,6 +3,7 @@ package com.undi.whackamole;
 import com.undi.whackamole.audio.WhackAMoleAudio;
 import com.undi.whackamole.view.WhackAMoleView;
 
+import android.media.AudioManager;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -38,6 +39,7 @@ public class WhackAMoleActivity extends Activity {
 		view = (WhackAMoleView) findViewById(R.id.mole);
 		view.setKeepScreenOn(true);
 		audio = WhackAMoleAudio.getInstance();
+		setVolumeControlStream(AudioManager.STREAM_MUSIC);
 	}
 	
 
